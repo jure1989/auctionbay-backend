@@ -42,6 +42,25 @@ export class AuthService {
     return this.jwtService.signAsync({ sub: user.id, name: user.email, jti: uuidv4() })
   }
 
+  async generateRefreshToken(user: User): Promise<string> {
+    const payload = { sub: user.id, name: user.email, jti: uuidv4() }
+    const expiresIn = this.configService.get('JWT_REFRESH_SECRET_EXPIRES')
+    return this.jwtService.signAsync(payload, { expiresIn })
+  }
+
+  async refreshToken(refreshToken: string): Promise<string> {
+    try {
+      const verifedToken = await this.jwtService.verify(refreshToken)
+
+      // Generate new access_token if token, payload is valid
+      const newAccess_token = await this.generateJwt(verifedToken.sub.id)
+
+      return newAccess_token
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token.')
+    }
+  }
+
   async user(cookie: string): Promise<User> {
     const data = await this.jwtService.verifyAsync(cookie)
     return this.usersService.findById(data['id'])
