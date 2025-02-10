@@ -10,6 +10,7 @@ import { AuthService } from './auth.service'
 import { JwtAuthGuard } from './guards/jwt.guard'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { LocalStrategy } from './strategies/local.strategy'
+import { JwtRefreshTokenStrategy } from './strategies/refreshToken.strategy'
 import * as redisStore from 'cache-manager-redis-store'
 
 @Module({
@@ -26,11 +27,11 @@ import * as redisStore from 'cache-manager-redis-store'
       }),
     }),
     CacheModule.registerAsync({
+      isGlobal: true,
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        isGlobal: true,
-        store: typeof redisStore,
+      useFactory: async (configService: ConfigService) => ({
+        store: redisStore,
         host: configService.get('REDIS_HOST'),
         port: configService.get('REDIS_PORT'),
         ttl: configService.get('JWT_REFRESH_SECRET_EXPIRES'),
@@ -42,6 +43,7 @@ import * as redisStore from 'cache-manager-redis-store'
     AuthService,
     LocalStrategy,
     JwtStrategy,
+    JwtRefreshTokenStrategy,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

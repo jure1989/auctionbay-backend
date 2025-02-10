@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import { User } from 'entities/user.entity'
 import { Request } from 'express'
 import { JwtService } from '@nestjs/jwt'
@@ -8,6 +8,9 @@ import { RegisterUserDto } from './dto/register-user.dto'
 import Logging from 'library/Logging'
 import { v4 as uuidv4 } from 'uuid'
 import { ConfigService } from '@nestjs/config'
+import { JwtType } from 'interfaces/auth.interface'
+import { CACHE_MANAGER } from '@nestjs/cache-manager'
+import { Cache } from 'cache-manager'
 
 @Injectable()
 export class AuthService {
@@ -15,6 +18,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User> {
@@ -39,26 +43,106 @@ export class AuthService {
   }
 
   async generateJwt(user: User): Promise<string> {
-    return this.jwtService.signAsync({ sub: user.id, name: user.email, jti: uuidv4() })
+    const payload = { sub: user.id, name: user.email, type: JwtType.access_token, jti: uuidv4() }
+    const expiresIn = await this.configService.get('JWT_SECRET_EXPIRES')
+
+    return this.jwtService.signAsync(payload, { secret: await this.configService.get('JWT_SECRET'), expiresIn })
   }
 
   async generateRefreshToken(user: User): Promise<string> {
-    const payload = { sub: user.id, name: user.email, jti: uuidv4() }
-    const expiresIn = this.configService.get('JWT_REFRESH_SECRET_EXPIRES')
-    return this.jwtService.signAsync(payload, { expiresIn })
+    const payload = { sub: user.id, name: user.email, type: JwtType.refresh_token, jti: uuidv4() }
+    const expiresIn = await this.configService.get('JWT_REFRESH_SECRET_EXPIRES')
+    console.log('expiresIn', expiresIn)
+    return this.jwtService.signAsync(payload, {
+      secret: await this.configService.get('JWT_REFRESH_SECRET'),
+      expiresIn,
+    })
   }
 
-  async refreshToken(refreshToken: string): Promise<string> {
+  async refreshToken(req: Request): Promise<{ access_token: string; refresh_token: string }> {
     try {
-      const verifedToken = await this.jwtService.verify(refreshToken)
+      const refresh_token = req.cookies['refresh_token']
 
-      // Generate new access_token if token, payload is valid
-      const newAccess_token = await this.generateJwt(verifedToken.sub.id)
+      if (!refresh_token) {
+        throw new UnauthorizedException('Token not valid')
+      }
+      const decodedRefreshToken = await this.jwtService.verifyAsync(refresh_token, {
+        secret: await this.configService.get('JWT_REFRESH_SECRET'),
+      })
 
-      return newAccess_token
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token.')
+      //Checking if refresh_token is already blacklisted:
+      const isBlacklisted = await this.isTokenBlacklisted(decodedRefreshToken.jti)
+      if (isBlacklisted) {
+        throw new UnauthorizedException('Token is already blacklisted')
+      }
+
+      const user = await this.usersService.findById(decodedRefreshToken.sub)
+
+      if (!user) {
+        throw new UnauthorizedException('User not found')
+      }
+
+      // Backlist old refresh_token:
+      const ttl = await this.configService.get('JWT_REFRESH_SECRET_EXPIRES')
+      await this.blacklistToken(decodedRefreshToken.jti, ttl)
+      console.log('jti', decodedRefreshToken.jti)
+      console.log('ttl', ttl)
+
+      const access_token = await this.generateJwt(user)
+      // generate new refresh token
+      const newRefreshToken = await this.generateRefreshToken(user)
+
+      return { access_token, refresh_token: newRefreshToken }
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token')
     }
+  }
+
+  async blacklistToken(jti: string, ttl: number): Promise<void> {
+    try {
+      console.log(`blacklisting token with: ${jti}`)
+      await this.cacheManager.set(`blacklist:${jti}`, true, { ttl })
+      console.log('ttl', ttl)
+      console.log(`toke with jti ${jti} blacklisted successfully`)
+    } catch (error) {
+      throw new Error('Failed to blacklist token')
+    }
+  }
+
+  async isTokenBlacklisted(jti: string): Promise<boolean> {
+    try {
+      const blacklistedToken = await this.cacheManager.get(`blacklist:${jti}`)
+
+      if (!blacklistedToken) {
+        return false
+      }
+      return true
+    } catch (error) {
+      throw new Error('Failed to check if the token is blacklisted.')
+    }
+  }
+
+  async logout(req: Request): Promise<{ message: string }> {
+    try {
+      const refresh_token = req.cookies['refresh_token']
+
+      if (refresh_token) {
+        const decodedRefreshToken = await this.jwtService.verifyAsync(refresh_token, {
+          secret: await this.configService.get('JWT_REFRESH_SECRET'),
+        })
+        const blacklisted = await this.isTokenBlacklisted(decodedRefreshToken.jti)
+        const ttl = await this.configService.get('JWT_REFRESH_SECRET_EXPIRES')
+
+        if (!blacklisted) {
+          await this.blacklistToken(decodedRefreshToken.jti, ttl)
+        }
+        console.log(decodedRefreshToken)
+      }
+      //return { message: 'Successfully logged out' }
+    } catch (error) {
+      throw new Error('Failed to log out')
+    }
+    return { message: 'Successfully logged out' }
   }
 
   async user(cookie: string): Promise<User> {

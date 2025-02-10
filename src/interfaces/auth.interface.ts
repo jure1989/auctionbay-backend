@@ -13,4 +13,5 @@ export interface RequestWithUser extends Request {
 
 export enum JwtType {
   access_token = 'ACCESS_TOKEN',
+  refresh_token = 'REFRESH_TOKEN',
 }
