@@ -21,9 +21,6 @@ export class AuctionItem extends Base {
   image?: string
 
   @Column()
-  duration: string
-
-  @Column()
   current_status: string
 
   @ManyToOne(() => User)

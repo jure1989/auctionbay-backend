@@ -105,3 +105,4 @@ docker-compose.yml
 *.tsbuildinfo
 next-env.d.ts
 .vscode
+*.rest
