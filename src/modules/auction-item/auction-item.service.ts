@@ -23,4 +23,12 @@ export class AuctionItemService extends AbstractService {
     }
     return await this.auctionItemRepository.save({ ...createAuctionItemDto, user })
   }
+
+  async findMyAuctionItems(id: string): Promise<AuctionItem[]> {
+    return await this.auctionItemRepository
+      .createQueryBuilder('auction_item')
+      .leftJoinAndSelect('auction_item.bids', 'bids')
+      .where('auction_item.user_id = :id', { id })
+      .getMany()
+  }
 }
