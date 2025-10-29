@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common'
 import { PaginatedResult } from 'interfaces/paginated-result.interface'
+import { queryPaginatedResult } from 'interfaces/queryPaginated-result.interface'
 import Logging from 'library/Logging'
-import { Repository } from 'typeorm'
+import { Repository, SelectQueryBuilder } from 'typeorm'
 
 @Injectable()
 export abstract class AbstractService {
@@ -71,6 +72,30 @@ export abstract class AbstractService {
     } catch (error) {
       Logging.error(error)
       throw new InternalServerErrorException('Something went wrong while searching for a paginated elements.')
+    }
+  }
+
+  async paginateQueryBuilder<T>(
+    query: SelectQueryBuilder<T>,
+    pageSize = 10,
+    page = 1,
+  ): Promise<queryPaginatedResult<T>> {
+    try {
+      const [data, total] = await query
+        .skip((page - 1) * pageSize)
+        .take(pageSize)
+        .getManyAndCount()
+      return {
+        data: data,
+        meta: {
+          page,
+          total,
+          last_page: Math.ceil(total / pageSize),
+        },
+      }
+    } catch (error) {
+      Logging.error(error)
+      throw new InternalServerErrorException(`Something went wrong while deleting an element.`)
     }
   }
 }
