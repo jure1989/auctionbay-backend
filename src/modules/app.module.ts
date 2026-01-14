@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module'
 import { UsersModule } from './users/users.module'
 import { AuctionItemModule } from './auction-item/auction-item.module'
 import { ScheduleModule } from '@nestjs/schedule'
+import { BidsModule } from 'bids/bids.module'
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ScheduleModule } from '@nestjs/schedule'
     UsersModule,
     AuthModule,
     AuctionItemModule,
+    BidsModule,
   ],
   controllers: [],
 })
