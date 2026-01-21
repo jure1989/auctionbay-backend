@@ -37,4 +37,14 @@ export class BidsController {
   ): Promise<queryPaginatedResult<Bid>> {
     return await this.bidsService.getAllBids(auctionItemId, pageSize, page)
   }
+
+  @Get('bidder/:userId')
+  @HttpCode(HttpStatus.OK)
+  async getBidsByBidderId(
+    @Param('userId') userId: string,
+    @Query('pageSize') pageSize: number,
+    @Query('page') page: number,
+  ): Promise<queryPaginatedResult<Bid>> {
+    return await this.bidsService.getBidsByBidderId(userId, pageSize, page)
+  }
 }

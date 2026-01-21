@@ -53,4 +53,13 @@ export class BidsService extends AbstractService {
       .orderBy('bid.created_at', 'DESC')
     return await this.paginateQueryBuilder(query, pageSize, page)
   }
+
+  async getBidsByBidderId(userId: string, pageSize = 10, page = 1) {
+    const query = this.bidsRepository
+      .createQueryBuilder('bid')
+      .leftJoinAndSelect('bid.bidder', 'bidder')
+      .leftJoinAndSelect('bid.auction_item', 'auction_item')
+      .where('bid.bidder.id = :id', { id: userId })
+    return await this.paginateQueryBuilder(query, pageSize, page)
+  }
 }
