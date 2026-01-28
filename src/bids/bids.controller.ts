@@ -47,4 +47,10 @@ export class BidsController {
   ): Promise<queryPaginatedResult<Bid>> {
     return await this.bidsService.getBidsByBidderId(userId, pageSize, page)
   }
+
+  @Get('highest/:auctionItemId')
+  @HttpCode(HttpStatus.OK)
+  async getHighestBid(@Param('auctionItemId') auctionItemId: string): Promise<Bid> {
+    return await this.bidsService.getHighestBid(auctionItemId)
+  }
 }

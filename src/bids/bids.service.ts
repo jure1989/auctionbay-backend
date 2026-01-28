@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, Req } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Bid } from 'entities/bid.entity'
-import { RequestWithUser } from 'interfaces/auth.interface'
 import { queryPaginatedResult } from 'interfaces/queryPaginated-result.interface'
 import { AbstractService } from 'modules/abstract/abstract.service'
 import { AuctionItemService } from 'modules/auction-item/auction-item.service'
@@ -61,5 +60,16 @@ export class BidsService extends AbstractService {
       .leftJoinAndSelect('bid.auction_item', 'auction_item')
       .where('bid.bidder.id = :id', { id: userId })
     return await this.paginateQueryBuilder(query, pageSize, page)
+  }
+
+  async getHighestBid(auctionItemId: string): Promise<Bid> {
+    const query = this.bidsRepository
+      .createQueryBuilder('bid')
+      .leftJoinAndSelect('bid.bidder', 'bidder')
+      .leftJoinAndSelect('bid.auction_item', 'auction_item')
+      .where('auction_item.id = :id', { id: auctionItemId })
+      .orderBy('bid.bid_amount', 'DESC')
+      .getOne()
+    return await query
   }
 }
