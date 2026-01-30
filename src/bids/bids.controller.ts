@@ -53,4 +53,10 @@ export class BidsController {
   async getHighestBid(@Param('auctionItemId') auctionItemId: string): Promise<Bid> {
     return await this.bidsService.getHighestBid(auctionItemId)
   }
+
+  @Get('history/:auctionItemId')
+  @HttpCode(HttpStatus.OK)
+  async getBidingHistory(@Param('auctionItemId') auctionItemId: string): Promise<Bid[]> {
+    return await this.bidsService.getBidingHistory(auctionItemId)
+  }
 }

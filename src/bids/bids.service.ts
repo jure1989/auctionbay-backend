@@ -72,4 +72,16 @@ export class BidsService extends AbstractService {
       .getOne()
     return await query
   }
+
+  async getBidingHistory(auctionItemId: string): Promise<Bid[]> {
+    const query = this.bidsRepository
+      .createQueryBuilder('bid')
+      .leftJoinAndSelect('bid.auction_item', 'auction_item')
+      .leftJoinAndSelect('bid.bidder', 'bidder')
+      .where('auction_item.id = :id', { id: auctionItemId })
+      .orderBy('bid.bid_amount', 'DESC')
+      .limit(3)
+      .getMany()
+    return await query
+  }
 }
