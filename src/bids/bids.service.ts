@@ -73,6 +73,18 @@ export class BidsService extends AbstractService {
     return await query
   }
 
+  async getUserHighestBid(bidderId: string, auctionItemId: string): Promise<Bid> {
+    const query = this.bidsRepository
+      .createQueryBuilder('bid')
+      .leftJoinAndSelect('bid.bidder', 'bidder')
+      .leftJoinAndSelect('bid.auction_item', 'auction_item')
+      .where('bidder.id = :bidderId', { bidderId })
+      .andWhere('auction_item.id = :auctionItemId', { auctionItemId })
+      .orderBy('bid.bid_amount', 'DESC')
+      .getOne()
+    return await query
+  }
+
   async getBidingHistory(auctionItemId: string): Promise<Bid[]> {
     const query = this.bidsRepository
       .createQueryBuilder('bid')

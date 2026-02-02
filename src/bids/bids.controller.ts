@@ -54,6 +54,15 @@ export class BidsController {
     return await this.bidsService.getHighestBid(auctionItemId)
   }
 
+  @Get('bidder/:bidderId/:auctionItemId')
+  @HttpCode(HttpStatus.OK)
+  async getUserHighestBid(
+    @Param('bidderId') bidderId: string,
+    @Param('auctionItemId') auctionItemId: string,
+  ): Promise<Bid> {
+    return await this.bidsService.getUserHighestBid(bidderId, auctionItemId)
+  }
+
   @Get('history/:auctionItemId')
   @HttpCode(HttpStatus.OK)
   async getBidingHistory(@Param('auctionItemId') auctionItemId: string): Promise<Bid[]> {
