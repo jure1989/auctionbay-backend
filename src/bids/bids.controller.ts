@@ -20,7 +20,6 @@ import { CreateBidDto } from './dto/create-bid.dto'
 export class BidsController {
   constructor(private readonly bidsService: BidsService) {}
 
-  //@UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.CREATED)
   @Post()
   async createBid(@Body() createBidDto: CreateBidDto): Promise<Bid> {
@@ -67,5 +66,15 @@ export class BidsController {
   @HttpCode(HttpStatus.OK)
   async getBidingHistory(@Param('auctionItemId') auctionItemId: string): Promise<Bid[]> {
     return await this.bidsService.getBidingHistory(auctionItemId)
+  }
+
+  @Get('won/:bidderId')
+  @HttpCode(HttpStatus.OK)
+  async getWonBids(
+    @Param('bidderId') bidderId: string,
+    @Query('pageSize') pageSize: number,
+    @Query('page') page: number,
+  ): Promise<queryPaginatedResult<Bid>> {
+    return await this.bidsService.getWonBids(bidderId, pageSize, page)
   }
 }
