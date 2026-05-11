@@ -17,6 +17,26 @@ export class BidsService extends AbstractService {
   ) {
     super(bidsRepository)
   }
+
+  private buildWonBidsQuery(bidderId: string, status: string) {
+    const query = this.bidsRepository
+      .createQueryBuilder('bid')
+      .leftJoinAndSelect('bid.bidder', 'bidder')
+      .leftJoinAndSelect('bid.auction_item', 'auction_item')
+      .where('auction_item.current_status = :status', { status })
+      .andWhere('bidder.id = :bidderId', { bidderId })
+      .andWhere((qb) => {
+        const subQuery = qb
+          .subQuery()
+          .select('MAX(innerBid.bid_amount)')
+          .from(Bid, 'innerBid')
+          .where('innerBid.auction_item_id = bid.auction_item_id')
+          .getQuery()
+        return 'bid.bid_amount = (' + subQuery + ')'
+      })
+    return query
+  }
+
   async createBid(createBidDto: CreateBidDto): Promise<Bid> {
     const user = await this.usersService.findById(createBidDto.user_id)
 
@@ -98,21 +118,7 @@ export class BidsService extends AbstractService {
   }
 
   async getWonBids(bidderId: string, pageSize = 10, page = 1): Promise<queryPaginatedResult<Bid>> {
-    const query = this.bidsRepository
-      .createQueryBuilder('bid')
-      .leftJoinAndSelect('bid.bidder', 'bidder')
-      .leftJoinAndSelect('bid.auction_item', 'auction_item')
-      .where('auction_item.current_status = :status', { status: 'finished' })
-      .andWhere('bidder.id = :bidderId', { bidderId })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('MAX(innerBid.bid_amount)')
-          .from(Bid, 'innerBid')
-          .where('innerBid.auction_item_id = bid.auction_item_id')
-          .getQuery()
-        return 'bid.bid_amount = (' + subQuery + ')'
-      })
+    const query = this.buildWonBidsQuery(bidderId, 'finished')
     return await this.paginateQueryBuilder(query, pageSize, page)
   }
 }
