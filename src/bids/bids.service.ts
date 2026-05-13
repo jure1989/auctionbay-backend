@@ -54,6 +54,16 @@ export class BidsService extends AbstractService {
       throw new BadRequestException('Auction has already ended.')
     }
 
+    const highestBid = await this.getHighestBid(auctionItem.id)
+
+    if (highestBid === null && createBidDto.bid_amount <= auctionItem.starting_price) {
+      throw new BadRequestException('Bid must be higher than starting price.')
+    }
+
+    if (createBidDto.bid_amount <= highestBid.bid_amount) {
+      throw new BadRequestException('Your bid must be higher than the current highest bid.')
+    }
+
     const createBid = this.bidsRepository.create({
       bid_amount: createBidDto.bid_amount,
       auction_item: auctionItem,
